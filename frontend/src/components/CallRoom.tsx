@@ -189,7 +189,7 @@ export default function CallRoom({ token, roomName, identity, onLeave }: CallRoo
           video={true}
           audio={true}
           token={token}
-          serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://warm-transfer-livekit.livekit.cloud'}
+          serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL || 'ws://localhost:7880'}
           data-lk-theme="default"
           style={{ height: '100%' }}
         >
