@@ -10,9 +10,11 @@ This application enables seamless warm transfers where Agent A can brief Agent B
 
 ### Backend (Python/FastAPI)
 - **FastAPI** framework for REST API endpoints
-- **LiveKit Server SDK** for room and participant management
+- **LiveKit Python SDK** for official token generation and room management
+- **LiveKit API** for creating/managing rooms and participants
 - **Groq API** integration for AI-powered call summaries
 - **Environment-based configuration** for security
+- **Proper participant removal** for clean transfers
 
 ### Frontend (Next.js/React)
 - **Next.js 15** with TypeScript and Tailwind CSS
@@ -120,7 +122,7 @@ npm run dev
 ## 📋 API Endpoints
 
 ### GET `/get-token`
-Generate LiveKit access token for room participation.
+Generate LiveKit access token for room participation using official LiveKit Python SDK.
 
 **Query Parameters:**
 - `room_name` (string): Target room name
@@ -130,6 +132,29 @@ Generate LiveKit access token for room participation.
 ```json
 {
   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Features:**
+- ✅ Official LiveKit SDK token generation
+- ✅ Automatic room creation if it doesn't exist
+- ✅ Proper video/audio permissions granted
+- ✅ Secure JWT signing with API credentials
+
+### GET `/rooms`
+List all active LiveKit rooms and their participants.
+
+**Response:**
+```json
+{
+  "rooms": [
+    {
+      "name": "customer-support-room-1",
+      "sid": "RM_abc123",
+      "num_participants": 2,
+      "creation_time": 1699123456
+    }
+  ]
 }
 ```
 
@@ -151,7 +176,7 @@ Generate AI summary of call context for warm transfer.
 ```
 
 ### POST `/complete-transfer`
-Finalize transfer by removing Agent A from the original room.
+Finalize transfer by removing Agent A from the original room using LiveKit API.
 
 **Request Body:**
 ```json
@@ -169,6 +194,11 @@ Finalize transfer by removing Agent A from the original room.
   "message": "Transfer completed. Agent A removed from customer-support-room-1"
 }
 ```
+
+**Features:**
+- ✅ Automatic participant removal via LiveKit API
+- ✅ Proper error handling for disconnection issues
+- ✅ Clean transfer completion without manual intervention
 
 ## 🔄 Warm Transfer Workflow
 
@@ -264,6 +294,37 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 
 ## 🧪 Testing the Application
 
+### LiveKit Integration Testing
+
+The backend includes comprehensive test scripts to validate LiveKit integration:
+
+**Test Token Generation:**
+```bash
+cd backend
+python test_token_only.py
+```
+✅ Tests official LiveKit SDK token generation  
+✅ Validates API credentials  
+✅ Confirms token format and length  
+
+**Test API Integration:**
+```bash
+cd backend
+python test_api_integration.py
+```
+✅ Tests room creation and listing  
+✅ Validates API connectivity  
+✅ Confirms participant management capabilities  
+
+**Test Full Backend:**
+```bash
+cd backend
+python test_livekit.py
+```
+✅ Tests all API endpoints  
+✅ Validates token endpoint responses  
+✅ Confirms room management functionality  
+
 ### Manual Testing Workflow
 
 1. **Start both servers** using provided scripts
@@ -336,6 +397,38 @@ npm run start
 - Check all LiveKit environment variables
 - Verify room name and identity are provided
 - Review server logs for detailed errors
+
+**5. Backend Dependencies**
+If you encounter import errors, ensure all dependencies are installed:
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+Key backend packages:
+- `livekit-api==1.0.5` - Official LiveKit Python SDK
+- `fastapi==0.104.1` - Web framework
+- `groq==0.4.1` - AI API client
+- `python-dotenv==1.0.0` - Environment management
+
+## 📚 Additional Resources
+
+- [LiveKit Documentation](https://docs.livekit.io/)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Groq API Documentation](https://console.groq.com/docs)
+
+## 🎉 Success!
+
+Your Warm Transfer application is now fully functional with:
+- ✅ Official LiveKit SDK integration
+- ✅ Real-time video/audio communication
+- ✅ AI-powered call summaries
+- ✅ Proper participant management
+- ✅ Clean transfer workflows
+- ✅ Comprehensive testing suite
+
+Enjoy seamless warm transfers with live audio calls! 🚀
 
 ### Debug Mode
 Enable debug logging in backend:

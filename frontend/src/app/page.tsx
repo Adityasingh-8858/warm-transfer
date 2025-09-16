@@ -1,7 +1,33 @@
 'use client';
 
 import { useState } from 'react';
-import CallRoom from '@/components/CallRoom';
+
+interface CallRoomProps {
+  token: string;
+  roomName: string;
+  identity: string;
+  onLeave: () => void;
+}
+
+const CallRoom: React.FC<CallRoomProps> = ({ token, roomName, identity, onLeave }) => {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
+        <h2 className="text-2xl font-bold mb-4">Room: {roomName}</h2>
+        <p className="text-gray-600 mb-4">Connected as {identity}</p>
+        <div className="text-xs bg-gray-100 p-2 rounded mb-4 overflow-auto">
+          <strong>Token (truncated):</strong> {token ? token.slice(0, 16) + '...' : 'N/A'}
+        </div>
+        <button
+          onClick={onLeave}
+          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition"
+        >
+          Leave Room
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export default function Home() {
   const [joined, setJoined] = useState(false);
