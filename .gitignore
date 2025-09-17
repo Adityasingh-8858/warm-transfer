@@ -44,6 +44,10 @@ yarn-error.log*
 .next/
 out/
 
+# Playwright MCP artifacts
+playwright-report/
+test-results/
+
 # IDE
 .vscode/
 .idea/
