@@ -142,6 +142,25 @@ Generate LiveKit access token for room participation using official LiveKit Pyth
 - ✅ Secure JWT signing with API credentials
 
 ### GET `/rooms`
+### GET `/participants`
+List participants currently in a specific LiveKit room.
+
+Query Parameters:
+- `room_name` (string): Target room name
+
+Response:
+```json
+{
+  "room": "support-room-1",
+  "participants": [
+    { "identity": "Agent A", "name": "Agent A", "metadata": null }
+  ]
+}
+```
+
+Notes:
+- Returns an empty list (instead of 500) if listing fails to keep UI resilient.
+
 List all active LiveKit rooms and their participants.
 
 **Response:**
@@ -171,9 +190,15 @@ Generate AI summary of call context for warm transfer.
 **Response:**
 ```json
 {
-  "summary": "Customer John Smith is experiencing billing discrepancies on account #12345. Previous agent confirmed the issue and initiated a refund request. Next steps: Complete refund processing and update customer."
+  "summary": "Customer John Smith is experiencing billing discrepancies...",
+  "id": "b1a0d5b0-0e5d-4a9c-8e76-5fd4d0c6b9e2"
 }
 ```
+
+Notes:
+- If `GROQ_API_KEY` is missing or `FORCE_MOCK_GROQ=1`, returns a mock summary for local development.
+- Summary is persisted (SQLite) and the record ID is returned.
+
 
 ### POST `/complete-transfer`
 Finalize transfer by removing Agent A from the original room using LiveKit API.
@@ -199,6 +224,94 @@ Finalize transfer by removing Agent A from the original room using LiveKit API.
 - ✅ Automatic participant removal via LiveKit API
 - ✅ Proper error handling for disconnection issues
 - ✅ Clean transfer completion without manual intervention
+
+### GET `/transfers`
+List persisted transfer summary records.
+
+Query Parameters:
+- `room_name` (optional): Filter by room
+- `limit` (optional int, default 50)
+
+Response:
+```json
+{
+  "transfers": [
+    {
+      "id": "b1a0d5b0-0e5d-4a9c-8e76-5fd4d0c6b9e2",
+      "room_name": "unknown",
+      "agent_a": "unknown",
+      "agent_b": null,
+      "summary": "Mock Summary: ...",
+      "call_context": "Customer ...",
+      "created_at": 1737050123.123
+    }
+  ]
+}
+```
+
+### GET `/transfers/{id}`
+Retrieve a single persisted transfer summary.
+
+Response:
+```json
+{
+  "id": "b1a0d5b0-0e5d-4a9c-8e76-5fd4d0c6b9e2",
+  "room_name": "unknown",
+  "agent_a": "unknown",
+  "agent_b": null,
+  "summary": "Mock Summary: ...",
+  "call_context": "Customer ...",
+  "created_at": 1737050123.123
+}
+```
+
+Errors:
+- 404 if the record does not exist.
+
+### POST `/ai-voice`
+Generate speech (WAV) from text. If `GROQ_API_KEY` is set and not forced to mock, it first generates a response via Groq, then synthesizes locally with pyttsx3.
+
+Request Body:
+```json
+{ "prompt": "Say hello" }
+```
+Response: audio/wav stream
+
+### AI Agent Controls
+
+Start, talk, and stop a lightweight AI agent participant. The system supports multiple agent modes:
+
+**Voice AI Agent (Full Conversational):**
+- Real-time Speech-to-Text (STT) using OpenAI Whisper
+- Large Language Model (LLM) conversation using OpenAI GPT
+- Text-to-Speech (TTS) using OpenAI voices
+- Natural voice conversations with customers
+- Intelligent responses and context awareness
+
+**Basic Agent (TTS Only):**
+- Text-to-speech output using local pyttsx3
+- Agent can respond to programmatic prompts
+- Real audio publishing via LiveKit RTC
+
+**Mock Agent (Testing):**
+- Validates control surface without media
+- Logs all commands for debugging
+
+**Agent Endpoints:**
+- POST `/agent/start`
+  - Body: `{ "room_name": "support-1", "identity": "ai-agent" }`
+  - Ensures room exists then starts agent session for the room
+- POST `/agent/say`
+  - Body: `{ "room_name": "support-1", "text": "Welcome to support!" }`
+  - Sends a prompt to the agent (voice AI responds naturally, basic agent uses TTS)
+- POST `/agent/stop`
+  - Body: `{ "room_name": "support-1" }`
+  - Stops the agent session for that room
+
+**Agent Configuration:**
+- `ENABLE_AGENT_MOCK=1`: Use mock agent (default for testing)
+- `ENABLE_VOICE_AI=1`: Enable full voice AI agent (requires OpenAI API key)
+- `ENABLE_AGENT_MOCK=0`: Enable basic real agent with TTS
 
 ## 🔄 Warm Transfer Workflow
 
@@ -269,8 +382,13 @@ LIVEKIT_API_KEY=your_livekit_api_key
 LIVEKIT_API_SECRET=your_livekit_api_secret  
 LIVEKIT_URL=wss://your-livekit-server.com
 GROQ_API_KEY=your_groq_api_key
+OPENAI_API_KEY=your_openai_api_key  # Required for Voice AI Agent
 HOST=127.0.0.1
 PORT=8000
+FORCE_MOCK_GROQ=0 # Set to 1 to force mock summaries (optional)
+PERSIST_DB_PATH= # Optional custom path for SQLite persistence
+ENABLE_AGENT_MOCK=1 # Set to 0 to enable real agent implementation (requires livekit-agents)
+ENABLE_VOICE_AI=0 # Set to 1 to enable full voice AI agent (requires OpenAI API key)
 ```
 
 **Frontend (`frontend/.env.local`):**
@@ -291,6 +409,12 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 1. Sign up at [Groq](https://groq.com)
 2. Generate API key
 3. Update `GROQ_API_KEY` in backend environment
+
+### OpenAI Setup (for Voice AI Agent)
+1. Sign up at [OpenAI](https://platform.openai.com)
+2. Generate API key
+3. Update `OPENAI_API_KEY` in backend environment
+4. Set `ENABLE_VOICE_AI=1` to enable voice AI capabilities
 
 ## 🧪 Testing the Application
 
@@ -352,6 +476,7 @@ python test_livekit.py
    - Click "Complete Transfer"
    - Agent A will be removed from the call
    - Agent B can now join and continue
+  - (Optional) Query `/transfers` endpoint to view persisted summary
 
 ## 🚀 Production Deployment
 
@@ -424,8 +549,10 @@ Your Warm Transfer application is now fully functional with:
 - ✅ Official LiveKit SDK integration
 - ✅ Real-time video/audio communication
 - ✅ AI-powered call summaries
+- ✅ Mock summary fallback for offline / keyless development
 - ✅ Proper participant management
 - ✅ Clean transfer workflows
+- ✅ Persistent storage of generated summaries
 - ✅ Comprehensive testing suite
 
 Enjoy seamless warm transfers with live audio calls! 🚀
