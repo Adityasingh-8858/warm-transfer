@@ -17,7 +17,8 @@ export default function CallRoom({ token, roomName, identity, onLeave }: CallRoo
   const [showSummary, setShowSummary] = useState(false);
   const [callContext, setCallContext] = useState('');
   const [showContextInput, setShowContextInput] = useState(false);
-
+  const [agentPrompt, setAgentPrompt] = useState('');
+  const [agentRunning, setAgentRunning] = useState(false);
   const isAgentA = identity.toLowerCase().includes('agent a') || identity.toLowerCase() === 'agent a';
 
   const handleWarmTransfer = async () => {
@@ -63,7 +64,7 @@ export default function CallRoom({ token, roomName, identity, onLeave }: CallRoo
         body: JSON.stringify({
           original_room_name: roomName,
           agent_a_identity: identity,
-          agent_b_identity: 'Agent B' // This would normally come from the UI
+          agent_b_identity: 'Agent A' // This would normally come from the UI
         }),
       });
 
@@ -79,6 +80,52 @@ export default function CallRoom({ token, roomName, identity, onLeave }: CallRoo
     }
   };
 
+  const startAgent = async () => {
+    try {
+      const res = await fetch('http://localhost:8000/agent/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room_name: roomName, identity: 'ai-agent' }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setAgentRunning(true);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to start agent');
+    }
+  };
+
+  const sayWithAgent = async () => {
+    if (!agentPrompt.trim()) return;
+    try {
+      const res = await fetch('http://localhost:8000/agent/say', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room_name: roomName, text: agentPrompt }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setAgentPrompt('');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to send prompt to agent');
+    }
+  };
+
+  const stopAgent = async () => {
+    try {
+      const res = await fetch('http://localhost:8000/agent/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room_name: roomName }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setAgentRunning(false);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to stop agent');
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col bg-gray-900">
       {/* Header */}
@@ -87,7 +134,7 @@ export default function CallRoom({ token, roomName, identity, onLeave }: CallRoo
           <h1 className="text-lg font-semibold text-gray-900">
             Room: {roomName}
           </h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-900">
             Connected as: {identity}
           </p>
         </div>
@@ -98,7 +145,7 @@ export default function CallRoom({ token, roomName, identity, onLeave }: CallRoo
               {!showSummary && (
                 <button
                   onClick={() => setShowContextInput(!showContextInput)}
-                  className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition duration-200"
+                  className="px-4 py-2 bg-yellow-500 text-black rounded-lg hover:bg-yellow-600 transition duration-200"
                 >
                   Warm Transfer
                 </button>
@@ -106,7 +153,7 @@ export default function CallRoom({ token, roomName, identity, onLeave }: CallRoo
               {showSummary && (
                 <button
                   onClick={handleCompleteTransfer}
-                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition duration-200"
+                  className="px-4 py-2 bg-green-500 text-black rounded-lg hover:bg-green-600 transition duration-200"
                 >
                   Complete Transfer
                 </button>
@@ -114,9 +161,33 @@ export default function CallRoom({ token, roomName, identity, onLeave }: CallRoo
             </>
           )}
           
+          {/* AI Agent Controls */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={agentRunning ? stopAgent : startAgent}
+              className={`px-3 py-2 rounded-lg transition ${agentRunning ? 'bg-purple-600 text-white hover:bg-purple-700' : 'bg-purple-500 text-white hover:bg-purple-600'}`}
+            >
+              {agentRunning ? 'Stop Agent' : 'Start Agent'}
+            </button>
+            <input
+              type="text"
+              value={agentPrompt}
+              onChange={(e) => setAgentPrompt(e.target.value)}
+              placeholder="Ask the AI agent..."
+              className="px-3 py-2 border border-gray-300 rounded-lg w-56"
+            />
+            <button
+              onClick={sayWithAgent}
+              disabled={!agentRunning || !agentPrompt.trim()}
+              className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+            >
+              Say
+            </button>
+          </div>
+          
           <button
             onClick={onLeave}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition duration-200"
+            className="px-4 py-2 bg-red-500 text-black rounded-lg hover:bg-red-600 transition duration-200"
           >
             Leave Room
           </button>
@@ -138,14 +209,14 @@ export default function CallRoom({ token, roomName, identity, onLeave }: CallRoo
             <div className="flex justify-end space-x-3 mt-4">
               <button
                 onClick={() => setShowContextInput(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 text-gray-900 hover:text-gray-800"
               >
                 Cancel
               </button>
               <button
                 onClick={handleWarmTransfer}
                 disabled={isTransferring || !callContext.trim()}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-blue-500 text-black rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isTransferring ? 'Generating Summary...' : 'Generate Summary'}
               </button>
@@ -160,15 +231,15 @@ export default function CallRoom({ token, roomName, identity, onLeave }: CallRoo
           <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
             <h3 className="text-lg font-semibold mb-4">Call Summary for Agent B</h3>
             <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <p className="text-gray-800 whitespace-pre-wrap">{transferSummary}</p>
+              <p className="text-gray-900 whitespace-pre-wrap">{transferSummary}</p>
             </div>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-900 mb-4">
               Share this summary with Agent B before completing the transfer.
             </p>
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowSummary(false)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 text-gray-900 hover:text-gray-800"
               >
                 Edit Context
               </button>
